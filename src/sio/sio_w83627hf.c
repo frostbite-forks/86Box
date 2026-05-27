@@ -136,6 +136,7 @@ typedef struct {
 
     int        has_hwm;
     fdc_t     *fdc_controller;
+    lpt_t     *lpt;
     port_92_t *port_92;
     serial_t  *uart[2];
 } w83627hf_t;
@@ -389,7 +390,7 @@ w83627hf_fdc_write(uint16_t cur_reg, uint8_t val, w83627hf_t *dev)
 static void
 w83627hf_lpt_write(uint16_t cur_reg, uint8_t val, w83627hf_t *dev)
 {
-    lpt1_remove();
+    lpt_port_remove(dev->lpt);
 
     switch (cur_reg) {
         case 0x30:
@@ -413,8 +414,8 @@ w83627hf_lpt_write(uint16_t cur_reg, uint8_t val, w83627hf_t *dev)
     }
 
     if (dev->dev_regs[1][0x30] & 1) {
-        lpt1_setup((dev->dev_regs[1][0x60] << 8) | (dev->dev_regs[1][0x61]));
-        lpt1_irq(dev->dev_regs[1][0x70]);
+        lpt_port_setup(dev->lpt, (dev->dev_regs[1][0x60] << 8) | (dev->dev_regs[1][0x61]));
+        lpt_port_irq(dev->lpt, dev->dev_regs[1][0x70]);
         w83627hf_log("W83627HF-LPT: BASE: %04x IRQ: %d\n", (dev->dev_regs[1][0x60] << 8) | (dev->dev_regs[1][0x61]), dev->dev_regs[1][0x70]);
     }
 }
@@ -947,6 +948,9 @@ w83627hf_init(const device_t *info)
 
     /* Floppy Disk Controller */
     dev->fdc_controller = device_add(&fdc_at_smc_device);
+
+    /* LPT */
+    dev->lpt = device_add_inst(&lpt_port_device, 1);
 
     /* Hardware Monitor */
     fan1_rpm = fan2_rpm = fan3_rpm = vcorea_voltage = vcoreb_voltage = 0;
