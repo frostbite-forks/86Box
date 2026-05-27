@@ -678,6 +678,7 @@ extern const device_t  opti495_ami_device;
 extern int             machine_at_opti495_ami_init(const machine_t *);
 
 /* m_at_common.c */
+extern void            machine_at_common_init_ex(const machine_t *, int type);
 extern void            machine_at_common_init(const machine_t *);
 extern void            machine_at_init(const machine_t *);
 extern void            machine_at_ps2_init(const machine_t *);

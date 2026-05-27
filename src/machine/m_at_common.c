@@ -61,7 +61,7 @@
 #include <86box/machine.h>
 
 void
-machine_at_common_init(const machine_t *model)
+machine_at_common_init_ex(const machine_t *model, int type)
 {
     machine_common_init(model);
 
@@ -70,10 +70,16 @@ machine_at_common_init(const machine_t *model)
     pic2_init();
     dma16_init();
 
-    if (model->init != machine_at_m290_init)
+    if (!(type & 4) && (model->init != machine_at_m290_init))
         device_add(&port_6x_device);
 
     standalone_gameport_type = &gameport_device;
+}
+
+void
+machine_at_common_init(const machine_t *model)
+{
+    machine_at_common_init_ex(model, 0);
 }
 
 void
