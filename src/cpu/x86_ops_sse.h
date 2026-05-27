@@ -211,7 +211,6 @@ opSSE_AE_a16(uint32_t fetchdat)
 {
     uint8_t mod_rm = fetchdat & 0xff;
     uint8_t sub    = (mod_rm >> 3) & 7;
-    uint8_t rm     = mod_rm & 7;
     uint8_t mod    = (mod_rm >> 6) & 3;
 
     SSE_ENTER();
@@ -383,7 +382,7 @@ opMOVSS_store_a32(uint32_t fetchdat)
  * -----------------------------------------------------------------------
  * Macro to generate ADDSS/SUBSS/MULSS/DIVSS/etc.
  */
-#define DEF_SSE_SCALAR_OP_SS(name, op, cycles)                        \
+#define DEF_SSE_SCALAR_OP_SS(name, oper, cycles)                      \
 static int                                                             \
 op##name##SS_a16(uint32_t fetchdat)                                   \
 {                                                                      \
@@ -400,7 +399,7 @@ op##name##SS_a16(uint32_t fetchdat)                                   \
         if (cpu_state.abrt) return 1;                                  \
         dst_f = sse_f32(dst_bits); src_f = sse_f32(src_bits);        \
     }                                                                  \
-    float res = dst_f op src_f;                                        \
+    float res = dst_f oper src_f;                                      \
     sse_xmm[cpu_reg & 7].lo =                                         \
         (sse_xmm[cpu_reg & 7].lo & 0xFFFFFFFF00000000ULL) |           \
         sse_bits32(res);                                               \
@@ -423,7 +422,7 @@ op##name##SS_a32(uint32_t fetchdat)                                   \
         if (cpu_state.abrt) return 1;                                  \
         dst_f = sse_f32(dst_bits); src_f = sse_f32(src_bits);        \
     }                                                                  \
-    float res = dst_f op src_f;                                        \
+    float res = dst_f oper src_f;                                      \
     sse_xmm[cpu_reg & 7].lo =                                         \
         (sse_xmm[cpu_reg & 7].lo & 0xFFFFFFFF00000000ULL) |           \
         sse_bits32(res);                                               \
@@ -576,7 +575,7 @@ opRCPSS_a32(uint32_t fetchdat)
     { .lo = ((uint64_t)sse_bits32(l0) | ((uint64_t)sse_bits32(l1) << 32)), \
       .hi = ((uint64_t)sse_bits32(l2) | ((uint64_t)sse_bits32(l3) << 32)) }
 
-#define DEF_SSE_PACKED_OP_PS(name, op, cycles)                         \
+#define DEF_SSE_PACKED_OP_PS(name, oper, cycles)                       \
 static int                                                              \
 op##name##PS_a16(uint32_t fetchdat)                                    \
 {                                                                       \
@@ -585,10 +584,10 @@ op##name##PS_a16(uint32_t fetchdat)                                    \
     fetch_ea_16(fetchdat);                                              \
     XMM_GETSRC_a16(src);                                               \
     XMM_REG *d = &sse_xmm[cpu_reg & 7];                               \
-    float r0 = PS_LANE0(*d) op PS_LANE0(src);                          \
-    float r1 = PS_LANE1(*d) op PS_LANE1(src);                          \
-    float r2 = PS_LANE2(*d) op PS_LANE2(src);                          \
-    float r3 = PS_LANE3(*d) op PS_LANE3(src);                          \
+    float r0 = PS_LANE0(*d) oper PS_LANE0(src);                        \
+    float r1 = PS_LANE1(*d) oper PS_LANE1(src);                        \
+    float r2 = PS_LANE2(*d) oper PS_LANE2(src);                        \
+    float r3 = PS_LANE3(*d) oper PS_LANE3(src);                        \
     d->lo = ((uint64_t)sse_bits32(r0)) | ((uint64_t)sse_bits32(r1) << 32); \
     d->hi = ((uint64_t)sse_bits32(r2)) | ((uint64_t)sse_bits32(r3) << 32); \
     CLOCK_CYCLES(cycles);                                               \
@@ -602,10 +601,10 @@ op##name##PS_a32(uint32_t fetchdat)                                    \
     fetch_ea_32(fetchdat);                                              \
     XMM_GETSRC_a32(src);                                               \
     XMM_REG *d = &sse_xmm[cpu_reg & 7];                               \
-    float r0 = PS_LANE0(*d) op PS_LANE0(src);                          \
-    float r1 = PS_LANE1(*d) op PS_LANE1(src);                          \
-    float r2 = PS_LANE2(*d) op PS_LANE2(src);                          \
-    float r3 = PS_LANE3(*d) op PS_LANE3(src);                          \
+    float r0 = PS_LANE0(*d) oper PS_LANE0(src);                        \
+    float r1 = PS_LANE1(*d) oper PS_LANE1(src);                        \
+    float r2 = PS_LANE2(*d) oper PS_LANE2(src);                        \
+    float r3 = PS_LANE3(*d) oper PS_LANE3(src);                        \
     d->lo = ((uint64_t)sse_bits32(r0)) | ((uint64_t)sse_bits32(r1) << 32); \
     d->hi = ((uint64_t)sse_bits32(r2)) | ((uint64_t)sse_bits32(r3) << 32); \
     CLOCK_CYCLES(cycles);                                               \
@@ -686,7 +685,7 @@ DEF_SSE_RCP_PS(a32, 32)
 /* -----------------------------------------------------------------------
  * MAXPS / MINPS / MAXSS / MINSS
  * ----------------------------------------------------------------------- */
-#define DEF_SSE_MINMAX_PS(name, op, cycles)                             \
+#define DEF_SSE_MINMAX_PS(name, oper, cycles)                           \
 static int                                                              \
 op##name##PS_a16(uint32_t fetchdat)                                    \
 {                                                                       \
@@ -695,10 +694,10 @@ op##name##PS_a16(uint32_t fetchdat)                                    \
     fetch_ea_16(fetchdat);                                              \
     XMM_GETSRC_a16(src);                                               \
     XMM_REG *d = &sse_xmm[cpu_reg & 7];                               \
-    float r0 = (PS_LANE0(*d) op PS_LANE0(src)) ? PS_LANE0(*d) : PS_LANE0(src); \
-    float r1 = (PS_LANE1(*d) op PS_LANE1(src)) ? PS_LANE1(*d) : PS_LANE1(src); \
-    float r2 = (PS_LANE2(*d) op PS_LANE2(src)) ? PS_LANE2(*d) : PS_LANE2(src); \
-    float r3 = (PS_LANE3(*d) op PS_LANE3(src)) ? PS_LANE3(*d) : PS_LANE3(src); \
+    float r0 = (PS_LANE0(*d) oper PS_LANE0(src)) ? PS_LANE0(*d) : PS_LANE0(src); \
+    float r1 = (PS_LANE1(*d) oper PS_LANE1(src)) ? PS_LANE1(*d) : PS_LANE1(src); \
+    float r2 = (PS_LANE2(*d) oper PS_LANE2(src)) ? PS_LANE2(*d) : PS_LANE2(src); \
+    float r3 = (PS_LANE3(*d) oper PS_LANE3(src)) ? PS_LANE3(*d) : PS_LANE3(src); \
     d->lo = ((uint64_t)sse_bits32(r0)) | ((uint64_t)sse_bits32(r1) << 32); \
     d->hi = ((uint64_t)sse_bits32(r2)) | ((uint64_t)sse_bits32(r3) << 32); \
     CLOCK_CYCLES(cycles);                                               \
@@ -712,10 +711,10 @@ op##name##PS_a32(uint32_t fetchdat)                                    \
     fetch_ea_32(fetchdat);                                              \
     XMM_GETSRC_a32(src);                                               \
     XMM_REG *d = &sse_xmm[cpu_reg & 7];                               \
-    float r0 = (PS_LANE0(*d) op PS_LANE0(src)) ? PS_LANE0(*d) : PS_LANE0(src); \
-    float r1 = (PS_LANE1(*d) op PS_LANE1(src)) ? PS_LANE1(*d) : PS_LANE1(src); \
-    float r2 = (PS_LANE2(*d) op PS_LANE2(src)) ? PS_LANE2(*d) : PS_LANE2(src); \
-    float r3 = (PS_LANE3(*d) op PS_LANE3(src)) ? PS_LANE3(*d) : PS_LANE3(src); \
+    float r0 = (PS_LANE0(*d) oper PS_LANE0(src)) ? PS_LANE0(*d) : PS_LANE0(src); \
+    float r1 = (PS_LANE1(*d) oper PS_LANE1(src)) ? PS_LANE1(*d) : PS_LANE1(src); \
+    float r2 = (PS_LANE2(*d) oper PS_LANE2(src)) ? PS_LANE2(*d) : PS_LANE2(src); \
+    float r3 = (PS_LANE3(*d) oper PS_LANE3(src)) ? PS_LANE3(*d) : PS_LANE3(src); \
     d->lo = ((uint64_t)sse_bits32(r0)) | ((uint64_t)sse_bits32(r1) << 32); \
     d->hi = ((uint64_t)sse_bits32(r2)) | ((uint64_t)sse_bits32(r3) << 32); \
     CLOCK_CYCLES(cycles);                                               \
@@ -726,7 +725,7 @@ DEF_SSE_MINMAX_PS(MIN, <, 3)
 DEF_SSE_MINMAX_PS(MAX, >, 3)
 
 /* Scalar variants */
-#define DEF_SSE_MINMAX_SS(name, op, cycles)                             \
+#define DEF_SSE_MINMAX_SS(name, oper, cycles)                           \
 static int                                                              \
 op##name##SS_a16(uint32_t fetchdat)                                    \
 {                                                                       \
@@ -742,7 +741,7 @@ op##name##SS_a16(uint32_t fetchdat)                                    \
         if (cpu_state.abrt) return 1;                                   \
         src_f = sse_f32(sb);                                           \
     }                                                                   \
-    float res = (dst_f op src_f) ? dst_f : src_f;                      \
+    float res = (dst_f oper src_f) ? dst_f : src_f;                    \
     sse_xmm[cpu_reg & 7].lo =                                          \
         (sse_xmm[cpu_reg & 7].lo & 0xFFFFFFFF00000000ULL) | sse_bits32(res); \
     CLOCK_CYCLES(cycles);                                               \
@@ -763,7 +762,7 @@ op##name##SS_a32(uint32_t fetchdat)                                    \
         if (cpu_state.abrt) return 1;                                   \
         src_f = sse_f32(sb);                                           \
     }                                                                   \
-    float res = (dst_f op src_f) ? dst_f : src_f;                      \
+    float res = (dst_f oper src_f) ? dst_f : src_f;                    \
     sse_xmm[cpu_reg & 7].lo =                                          \
         (sse_xmm[cpu_reg & 7].lo & 0xFFFFFFFF00000000ULL) | sse_bits32(res); \
     CLOCK_CYCLES(cycles);                                               \
@@ -776,7 +775,7 @@ DEF_SSE_MINMAX_SS(MAX, >, 3)
 /* -----------------------------------------------------------------------
  * ANDPS / ANDNPS / ORPS / XORPS
  * ----------------------------------------------------------------------- */
-#define DEF_SSE_BITWISE_PS(name, op, cycles)                            \
+#define DEF_SSE_BITWISE_PS(name, oper, cycles)                          \
 static int                                                              \
 op##name##PS_a16(uint32_t fetchdat)                                    \
 {                                                                       \
@@ -784,8 +783,8 @@ op##name##PS_a16(uint32_t fetchdat)                                    \
     SSE_ENTER();                                                        \
     fetch_ea_16(fetchdat);                                              \
     XMM_GETSRC_a16(src);                                               \
-    sse_xmm[cpu_reg & 7].lo op##= src.lo;                              \
-    sse_xmm[cpu_reg & 7].hi op##= src.hi;                              \
+    sse_xmm[cpu_reg & 7].lo = sse_xmm[cpu_reg & 7].lo oper src.lo;    \
+    sse_xmm[cpu_reg & 7].hi = sse_xmm[cpu_reg & 7].hi oper src.hi;    \
     CLOCK_CYCLES(cycles);                                               \
     return 0;                                                           \
 }                                                                       \
@@ -796,8 +795,8 @@ op##name##PS_a32(uint32_t fetchdat)                                    \
     SSE_ENTER();                                                        \
     fetch_ea_32(fetchdat);                                              \
     XMM_GETSRC_a32(src);                                               \
-    sse_xmm[cpu_reg & 7].lo op##= src.lo;                              \
-    sse_xmm[cpu_reg & 7].hi op##= src.hi;                              \
+    sse_xmm[cpu_reg & 7].lo = sse_xmm[cpu_reg & 7].lo oper src.lo;    \
+    sse_xmm[cpu_reg & 7].hi = sse_xmm[cpu_reg & 7].hi oper src.hi;    \
     CLOCK_CYCLES(cycles);                                               \
     return 0;                                                           \
 }
