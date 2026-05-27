@@ -253,6 +253,7 @@ enum {
     MACHINE_CHIPSET_INTEL_440BX,
     MACHINE_CHIPSET_INTEL_440ZX,
     MACHINE_CHIPSET_INTEL_440GX,
+    MACHINE_CHIPSET_INTEL_I815EP,
     MACHINE_CHIPSET_OPTI_283,
     MACHINE_CHIPSET_OPTI_291,
     MACHINE_CHIPSET_OPTI_381,
@@ -1386,6 +1387,13 @@ extern const device_t  ms6318_device;
 #endif
 extern int             machine_at_ms6318_init(const machine_t *);
 extern int             machine_at_cairo5_init(const machine_t *);
+
+/* Intel i815EP */
+extern int machine_at_cusl2c_init(const machine_t *);
+extern int machine_at_j815epda_init(const machine_t *);
+extern int machine_at_m6tsl_init(const machine_t *);
+extern int machine_at_m6tss_init(const machine_t *);
+extern int machine_at_s2080_init(const machine_t *);
 
 /* m_at_misc.c */
 extern int             machine_at_vpc2007_init(const machine_t *);

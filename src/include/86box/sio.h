@@ -102,6 +102,23 @@ extern const device_t i82091aa_device;
 #define PC87310_ALI          0x00004
 #define PC87332              PC87310_ALI
 
+extern const device_t i82091aa_398_device;
+extern const device_t i82091aa_ide_pri_device;
+extern const device_t i82091aa_ide_device;
+
+/* ITE IT8702 */
+extern const device_t it8702_device;
+
+/* National Semiconductor NSC366 (PC87366) */
+extern const device_t nsc366_device;
+extern const device_t nsc366_4f_device;
+
+extern const device_t pc87306_device;
+extern const device_t pc87307_device;
+extern const device_t pc87307_15c_device;
+extern const device_t pc87307_both_device;
+extern const device_t pc87309_device;
+extern const device_t pc87309_15c_device;
 extern const device_t pc87310_device;
 
 /* National Semiconductors */
@@ -212,5 +229,21 @@ extern const device_t w83877_device;
 #define W83977_KBC           0x000f0
 
 extern const device_t w83977_device;
+extern const device_t w83627hf_device;
+extern const device_t w83627hf_no_hwm_device;
+extern const device_t w83787f_88h_device;
+extern const device_t w83787f_device;
+extern const device_t w83787f_ide_device;
+extern const device_t w83787f_ide_en_device;
+extern const device_t w83787f_ide_sec_device;
+extern const device_t w83877f_device;
+extern const device_t w83877f_president_device;
+extern const device_t w83877tf_device;
+extern const device_t w83877tf_acorp_device;
+extern const device_t w83977f_device;
+extern const device_t w83977f_370_device;
+extern const device_t w83977tf_device;
+extern const device_t w83977ef_device;
+extern const device_t w83977ef_370_device;
 
 #endif /*EMU_SIO_H*/
