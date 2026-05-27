@@ -594,7 +594,7 @@ pci_bridge_init(const device_t *info)
     if ((info->local != PCI_BRIDGE_INTEL_ICH2) && (info->local != AGP_BRIDGE_INTEL_815EP)) {
         interrupt_mask = sizeof(interrupts) - 1;
         if (dev->slot < 32) {
-            for (uint8_t i = 0; i < interrupt_count; i++)
+            for (uint8_t i = 0; i < interrupt_mask; i++)
                 interrupts[i] = pci_get_int(dev->slot, PCI_INTA + i);
         }
         pci_bridge_log("PCI Bridge %d: upstream bus %02X slot %02X interrupts %02X %02X %02X %02X\n",
