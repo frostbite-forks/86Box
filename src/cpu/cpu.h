@@ -81,7 +81,8 @@ enum {
     CPU_CYRIX3S,
     CPU_PENTIUMPRO, /* 686 class CPUs */
     CPU_PENTIUM2,
-    CPU_PENTIUM2D
+    CPU_PENTIUM2D,
+    CPU_PENTIUM3    /* 686 class – Katmai, adds SSE */
 };
 
 enum {
@@ -556,6 +557,7 @@ extern int hasfpu;
 #define CPU_FEATURE_SYSCALL (1 << 7)
 #define CPU_FEATURE_3DNOWE  (1 << 8)
 #define CPU_FEATURE_PSE36   (1 << 9)
+#define CPU_FEATURE_SSE     (1 << 10) /* SSE (XMM registers) */
 
 extern uint32_t cpu_features;
 
@@ -844,6 +846,7 @@ extern int  cpu_force_interpreter;
 extern int  cpu_override_dynarec;
 
 extern void mmx_init(void);
+extern void sse_init(void);
 extern void prefetch_flush(void);
 
 extern void prefetch_run(int instr_cycles, int bytes, int modrm, int reads, int reads_l, int writes, int writes_l, int ea32);

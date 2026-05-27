@@ -31,6 +31,7 @@
 #include "cpu.h"
 #include "x86.h"
 #include "x87_sf.h"
+#include "sse_state.h"
 #include <86box/device.h>
 #include <86box/machine.h>
 #include <86box/io.h>
@@ -71,8 +72,10 @@ enum {
     CPUID_CMOV      = (1 << 15), /* Conditional move instructions */
     CPUID_PAT       = (1 << 16), /* Page Attribute Table */
     CPUID_PSE36     = (1 << 17), /* 36-bit Page Size Extension */
+    CPUID_PSN       = (1 << 18), /* Processor Serial Number */
     CPUID_MMX       = (1 << 23), /* MMX technology */
-    CPUID_FXSR      = (1 << 24)  /* FXSAVE and FXRSTOR instructions */
+    CPUID_FXSR      = (1 << 24), /* FXSAVE and FXRSTOR instructions */
+    CPUID_SSE       = (1 << 25)  /* SSE instructions */
 };
 
 /* Additional flags returned by CPUID function 0x80000001 */
@@ -1683,10 +1686,13 @@ cpu_set(void)
         case CPU_PENTIUMPRO:
         case CPU_PENTIUM2:
         case CPU_PENTIUM2D:
+        case CPU_PENTIUM3:
 #ifdef USE_DYNAREC
             /* TODO: Perhaps merge the three opcode tables with some instructions UD#'ing depending on
                      CPU type. */
-            if (cpu_s->cpu_type == CPU_PENTIUM2D)
+            if (cpu_s->cpu_type == CPU_PENTIUM3)
+                x86_setopcodes(ops_386, ops_pentium3_0f, dynarec_ops_386, dynarec_ops_pentium2d_0f);
+            else if (cpu_s->cpu_type == CPU_PENTIUM2D)
                 x86_setopcodes(ops_386, ops_pentium2d_0f, dynarec_ops_386, dynarec_ops_pentium2d_0f);
             else if (cpu_s->cpu_type == CPU_PENTIUM2)
                 x86_setopcodes(ops_386, ops_pentium2_0f, dynarec_ops_386, dynarec_ops_pentium2_0f);
@@ -1708,7 +1714,9 @@ cpu_set(void)
                 x86_dynarec_opcodes_df_a32 = dynarec_ops_fpu_686_df_a32;
             }
 #else
-            if (cpu_s->cpu_type == CPU_PENTIUM2D)
+            if (cpu_s->cpu_type == CPU_PENTIUM3)
+                x86_setopcodes(ops_386, ops_pentium3_0f);
+            else if (cpu_s->cpu_type == CPU_PENTIUM2D)
                 x86_setopcodes(ops_386, ops_pentium2d_0f);
             else
                 x86_setopcodes(ops_386, ops_pentium2_0f);
@@ -1768,6 +1776,11 @@ cpu_set(void)
             if (cpu_s->cpu_type == CPU_PENTIUM2D) {
                 cpu_CR4_mask |= CR4_OSFXSR;
                 cpu_features |= CPU_FEATURE_PSE36;
+            }
+            if (cpu_s->cpu_type == CPU_PENTIUM3) {
+                cpu_CR4_mask |= CR4_OSFXSR;
+                cpu_features |= CPU_FEATURE_PSE36 | CPU_FEATURE_SSE;
+                sse_init();
             }
 
 #ifdef USE_DYNAREC
@@ -2548,6 +2561,170 @@ cpu_CPUID(void)
                     EDX = 0x0c040843; /* 2nd-level cache: 512 KB, 4-way set associative, 32-byte line size */
             } else
                 EAX = EBX = ECX = EDX = 0;
+            break;
+
+        case CPU_PENTIUM3:
+            /*
+             * Pentium III CPUID per Intel datasheets:
+             *
+             * Katmai (S.E.C.C./S.E.C.C.2, Slot 1, 100 MHz FSB):
+             *   Intel Order Number 244452 (Pentium III at 450/500/550 MHz)
+             *   Family 6, Model 7, Stepping x  -> 067xh
+             *   - 512 KB off-die L2 (BSRAM), 4-way set assoc, 32-byte line (descriptor 0x43)
+             *   - L1: 16 KB inst + 16 KB data, 4-way, 32-byte line
+             *   - Processor Serial Number (PSN) present (EDX leaf 1 bit 18)
+             *   - CPUID max leaf: 3  (leaf 3 returns the 96-bit PSN)
+             *   - VCC_CORE: 2.00 V (typ)
+             *
+             * Coppermine (FC-PGA/S.E.C.C.2, Slot 1 or Socket 370, 100/133 MHz FSB):
+             *   Family 6, Model 8, Stepping x  -> 068xh
+             *   - 256 KB on-die L2 ATC, 8-way set assoc, 32-byte line (descriptor 0x42)
+             *   - L1: 16 KB inst + 16 KB data, 4-way, 32-byte line
+             *   - Processor Serial Number (PSN) present (EDX leaf 1 bit 18)
+             *   - CPUID max leaf: 3  (leaf 3 returns the 96-bit PSN)
+             *   - VCC_CORE: 1.60–1.75 V
+             *
+             * Tualatin (FC-PGA2, Socket 370, 133 MHz FSB):
+             *   Intel Order Number 249657 (Pentium III with 512KB L2 Cache at 1.13–1.40 GHz)
+             *   Family 6, Model 11 (0Bh), Stepping x  -> 06Bxh
+             *   - 512 KB on-die L2 ATC, 8-way set assoc, 32-byte line (descriptor 0x43)
+             *     256-bit wide cache data bus; full-speed, integrated on die
+             *   - L1: 16 KB inst + 16 KB data, 4-way, 32-byte line
+             *   - No Processor Serial Number (PSN not present; bit 18 not set)
+             *   - CPUID max leaf: 2
+             *   - VCC_CORE: 1.45–1.50 V (typ, per VID table)
+             *
+             * cpu_table entries (edx_reset / cpuid_model):
+             *   Katmai     -> 0x672  (Family 6, Model 7, Stepping 2)
+             *   Coppermine -> 0x686  (Family 6, Model 8, Stepping 6)
+             *   Tualatin   -> 0x6B1  (Family 6, Model 11, Stepping 1)
+             */
+            if (CPUID >= 0x6B0) {
+                /* ---- Tualatin (Family 6, Model 11 = 0x6Bx) ---- */
+                if (!EAX) {
+                    EAX = 0x00000002;           /* max supported leaf */
+                    EBX = 0x756e6547;           /* "Genu" */
+                    EDX = 0x49656e69;           /* "ineI" */
+                    ECX = 0x6c65746e;           /* "ntel" */
+                } else if (EAX == 1) {
+                    EAX = CPUID;
+                    EBX = ECX = 0;
+                    /* No PSN (bit 18) per Intel Order Number 249657 datasheet.
+                     * Feature set identical to Coppermine minus PSN. */
+                    EDX = CPUID_FPU | CPUID_VME | CPUID_DE  | CPUID_PSE  |
+                          CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE  |
+                          CPUID_CMPXCHG8B | CPUID_APIC | CPUID_SEP | CPUID_MTRR |
+                          CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT |
+                          CPUID_PSE36 | CPUID_FXSR | CPUID_MMX | CPUID_SSE;
+                    msr.bbl_cr_dx[3] = 0xffffffff00000000ULL;
+                } else if (EAX == 2) {
+                    /*
+                     * Cache / TLB descriptors for Tualatin:
+                     *   EAX[7:0]  = 0x01 (call count: 1)
+                     *   EAX[15:8] = 0x01 (ITLB: 4 KB pages, 4-way, 32 entries)
+                     *   EAX[23:16]= 0x02 (ITLB: 4 MB pages, fully assoc, 2 entries)
+                     *   EAX[31:24]= 0x03 (DTLB: 4 KB pages, 4-way, 64 entries)
+                     *   EDX[7:0]  = 0x43 (512 KB unified L2, 4-way, 32-byte line)
+                     *   EDX[15:8] = 0x08 (L1 inst: 16 KB, 4-way, 32-byte line)
+                     *   EDX[23:16]= 0x04 (DTLB: 4 MB pages, 4-way, 8 entries)
+                     *   EDX[31:24]= 0x0c (L1 data: 16 KB, 4-way, 32-byte line)
+                     * Note: descriptor 0x43 is used for the 512KB on-die ATC L2;
+                     * the ATC is 8-way internally but the AP-485 descriptor byte
+                     * 0x43 is the correct reported value for 512KB/32-byte-line L2.
+                     */
+                    EAX = 0x03020101;
+                    EBX = ECX = 0;
+                    EDX = 0x0c040843; /* 512 KB on-die L2 ATC (Tualatin) */
+                } else
+                    EAX = EBX = ECX = EDX = 0;
+            } else if (CPUID >= 0x680) {
+                /* ---- Coppermine (Family 6, Model 8 = 0x68x) ---- */
+                if (!EAX) {
+                    EAX = 0x00000003;           /* max supported leaf */
+                    EBX = 0x756e6547;           /* "Genu" */
+                    EDX = 0x49656e69;           /* "ineI" */
+                    ECX = 0x6c65746e;           /* "ntel" */
+                } else if (EAX == 1) {
+                    EAX = CPUID;
+                    EBX = ECX = 0;
+                    /* PSN present (bit 18) per Coppermine datasheet. */
+                    EDX = CPUID_FPU | CPUID_VME | CPUID_DE  | CPUID_PSE  |
+                          CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE  |
+                          CPUID_CMPXCHG8B | CPUID_APIC | CPUID_SEP | CPUID_MTRR |
+                          CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT |
+                          CPUID_PSE36 | CPUID_PSN | CPUID_FXSR | CPUID_MMX |
+                          CPUID_SSE;
+                    /* Signal that a microcode update has been loaded */
+                    msr.bbl_cr_dx[3] = 0xffffffff00000000ULL;
+                } else if (EAX == 2) {
+                    /*
+                     * Cache / TLB descriptors for Coppermine:
+                     *   EAX[7:0]  = 0x01 (call count: 1)
+                     *   EAX[15:8] = 0x01 (ITLB: 4 KB pages, 4-way, 32 entries)
+                     *   EAX[23:16]= 0x02 (ITLB: 4 MB pages, fully assoc, 2 entries)
+                     *   EAX[31:24]= 0x03 (DTLB: 4 KB pages, 4-way, 64 entries)
+                     *   EDX[7:0]  = 0x42 (256 KB unified L2 ATC, 4-way, 32-byte line)
+                     *   EDX[15:8] = 0x08 (L1 inst: 16 KB, 4-way, 32-byte line)
+                     *   EDX[23:16]= 0x04 (DTLB: 4 MB pages, 4-way, 8 entries)
+                     *   EDX[31:24]= 0x0c (L1 data: 16 KB, 4-way, 32-byte line)
+                     */
+                    EAX = 0x03020101;
+                    EBX = ECX = 0;
+                    EDX = 0x0c040842; /* 256 KB on-die L2 ATC (Coppermine) */
+                } else if (EAX == 3) {
+                    /* Processor Serial Number (96-bit).
+                     * Bits [95:64] are in EAX from leaf 1 (= CPUID value).
+                     * Bits [63:32] are returned in EDX, bits [31:0] in ECX.
+                     * A fixed non-zero dummy serial is returned here; real
+                     * hardware fuses a unique value per die. */
+                    EAX = 0;            /* reserved */
+                    EBX = 0;            /* reserved */
+                    ECX = 0x12345678;   /* lower 32 bits of serial */
+                    EDX = 0x9ABCDEF0;   /* upper 32 bits of serial */
+                } else
+                    EAX = EBX = ECX = EDX = 0;
+            } else {
+                /* ---- Katmai (Family 6, Model 7 = 0x67x) ---- */
+                if (!EAX) {
+                    EAX = 0x00000003;           /* max supported leaf */
+                    EBX = 0x756e6547;           /* "Genu" */
+                    EDX = 0x49656e69;           /* "ineI" */
+                    ECX = 0x6c65746e;           /* "ntel" */
+                } else if (EAX == 1) {
+                    EAX = CPUID;
+                    EBX = ECX = 0;
+                    /* PSN present (bit 18) per Intel Order Number 244452 datasheet. */
+                    EDX = CPUID_FPU | CPUID_VME | CPUID_DE  | CPUID_PSE  |
+                          CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE  |
+                          CPUID_CMPXCHG8B | CPUID_APIC | CPUID_SEP | CPUID_MTRR |
+                          CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT |
+                          CPUID_PSE36 | CPUID_PSN | CPUID_FXSR | CPUID_MMX |
+                          CPUID_SSE;
+                    msr.bbl_cr_dx[3] = 0xffffffff00000000ULL;
+                } else if (EAX == 2) {
+                    /*
+                     * Cache / TLB descriptors for Katmai:
+                     *   EAX[7:0]  = 0x01 (call count: 1)
+                     *   EAX[15:8] = 0x01 (ITLB: 4 KB pages, 4-way, 32 entries)
+                     *   EAX[23:16]= 0x02 (ITLB: 4 MB pages, fully assoc, 2 entries)
+                     *   EAX[31:24]= 0x03 (DTLB: 4 KB pages, 4-way, 64 entries)
+                     *   EDX[7:0]  = 0x43 (512 KB unified L2, 4-way, 32-byte line)
+                     *   EDX[15:8] = 0x08 (L1 inst: 16 KB, 4-way, 32-byte line)
+                     *   EDX[23:16]= 0x04 (DTLB: 4 MB pages, 4-way, 8 entries)
+                     *   EDX[31:24]= 0x0c (L1 data: 16 KB, 4-way, 32-byte line)
+                     */
+                    EAX = 0x03020101;
+                    EBX = ECX = 0;
+                    EDX = 0x0c040843; /* 512 KB off-die L2 BSRAM (Katmai) */
+                } else if (EAX == 3) {
+                    /* Processor Serial Number (96-bit), same scheme as Coppermine. */
+                    EAX = 0;
+                    EBX = 0;
+                    ECX = 0x12345678;
+                    EDX = 0x9ABCDEF0;
+                } else
+                    EAX = EBX = ECX = EDX = 0;
+            }
             break;
 
         case CPU_CYRIX3S:

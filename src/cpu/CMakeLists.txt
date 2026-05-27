@@ -26,6 +26,7 @@ add_library(cpu OBJECT
     386_common.c
     386_dynarec.c
     x86_ops_mmx.c
+    x86_ops_sse.c
     x86seg_common.c
     x86seg.c
     x86seg_2386.c

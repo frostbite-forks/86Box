@@ -241,6 +241,7 @@ extern const OpFn ops_k62_0f[1024];
 extern const OpFn ops_pentiumpro_0f[1024];
 extern const OpFn ops_pentium2_0f[1024];
 extern const OpFn ops_pentium2d_0f[1024];
+extern const OpFn ops_pentium3_0f[1024];
 
 extern const OpFn ops_sf_fpu_287_d9_a16[256];
 extern const OpFn ops_sf_fpu_287_d9_a32[256];
