@@ -2598,11 +2598,22 @@ const OpFn OP_TABLE(386)[1024] = {
     // clang-format on
 };
 
+/* opF3_0F_a16/a32 are SSE scalar-float dispatchers defined in x86_ops_sse.h.
+ * They are only available when OPS_286_386 is NOT defined (i.e., full 386+
+ * mode).  Use 0 (illegal/unhandled) for the 286/386-limited build. */
+#ifdef OPS_286_386
+#    define SSE_F3_0F_a16 0
+#    define SSE_F3_0F_a32 0
+#else
+#    define SSE_F3_0F_a16 opF3_0F_a16
+#    define SSE_F3_0F_a32 opF3_0F_a32
+#endif
+
 const OpFn OP_TABLE(REPE)[1024] = {
     // clang-format off
         /*16-bit data, 16-bit addr*/
 /*      00              01              02              03              04              05              06              07              08              09              0a              0b              0c              0d              0e              0f*/
-/*00*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              opF3_0F_a16,
+/*00*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              SSE_F3_0F_a16,
 /*10*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,
 /*20*/  0,              0,              0,              0,              0,              0,              opES_REPE_w_a16,0,              0,              0,              0,              0,              0,              0,              opCS_REPE_w_a16,0,
 /*30*/  0,              0,              0,              0,              0,              0,              opSS_REPE_w_a16,0,              0,              0,              0,              0,              0,              0,              opDS_REPE_w_a16,0,
@@ -2624,7 +2635,7 @@ const OpFn OP_TABLE(REPE)[1024] = {
 
         /*32-bit data, 16-bit addr*/
 /*      00              01              02              03              04              05              06              07              08              09              0a              0b              0c              0d              0e              0f*/
-/*00*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              opF3_0F_a16,
+/*00*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              SSE_F3_0F_a16,
 /*10*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,
 /*20*/  0,              0,              0,              0,              0,              0,              opES_REPE_l_a16,0,              0,              0,              0,              0,              0,              0,              opCS_REPE_l_a16,0,
 /*30*/  0,              0,              0,              0,              0,              0,              opSS_REPE_l_a16,0,              0,              0,              0,              0,              0,              0,              opDS_REPE_l_a16,0,
@@ -2646,7 +2657,7 @@ const OpFn OP_TABLE(REPE)[1024] = {
 
         /*16-bit data, 32-bit addr*/
 /*      00              01              02              03              04              05              06              07              08              09              0a              0b              0c              0d              0e              0f*/
-/*00*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              opF3_0F_a32,
+/*00*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              SSE_F3_0F_a32,
 /*10*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,
 /*20*/  0,              0,              0,              0,              0,              0,              opES_REPE_w_a32,0,              0,              0,              0,              0,              0,              0,              opCS_REPE_w_a32,0,
 /*30*/  0,              0,              0,              0,              0,              0,              opSS_REPE_w_a32,0,              0,              0,              0,              0,              0,              0,              opDS_REPE_w_a32,0,
@@ -2668,7 +2679,7 @@ const OpFn OP_TABLE(REPE)[1024] = {
 
         /*32-bit data, 32-bit addr*/
 /*      00              01              02              03              04              05              06              07              08              09              0a              0b              0c              0d              0e              0f*/
-/*00*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              opF3_0F_a32,
+/*00*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              SSE_F3_0F_a32,
 /*10*/  0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,              0,
 /*20*/  0,              0,              0,              0,              0,              0,              opES_REPE_l_a32,0,              0,              0,              0,              0,              0,              0,              opCS_REPE_l_a32,0,
 /*30*/  0,              0,              0,              0,              0,              0,              opSS_REPE_l_a32,0,              0,              0,              0,              0,              0,              0,              opDS_REPE_l_a32,0,

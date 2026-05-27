@@ -101,7 +101,7 @@
         writememq(easeg, cpu_state.eaaddr + 8, (v).hi);               \
         if (cpu_state.abrt) return 1;                                  \
     } while (0)
-#define XMM_STOREMEM_a32  XMM_STOREMEM_a16
+#define XMM_STOREMEM_a32(v)  XMM_STOREMEM_a16(v)
 
 /* -----------------------------------------------------------------------
  * Floating-point helpers
@@ -268,7 +268,7 @@ opSSE_AE_a32(uint32_t fetchdat)
  * ----------------------------------------------------------------------- */
 #define DEF_MOVAPS_LOAD(suffix, bits)                                  \
 static int                                                             \
-opMOVAPS_xmm_xmm##suffix(uint32_t fetchdat)                           \
+opMOVAPS_xmm_xmm_##suffix(uint32_t fetchdat)                          \
 {                                                                      \
     XMM_REG src;                                                       \
     SSE_ENTER();                                                       \
@@ -281,7 +281,7 @@ opMOVAPS_xmm_xmm##suffix(uint32_t fetchdat)                           \
 
 #define DEF_MOVAPS_STORE(suffix, bits)                                 \
 static int                                                             \
-opMOVAPS_xmm_store##suffix(uint32_t fetchdat)                         \
+opMOVAPS_xmm_store_##suffix(uint32_t fetchdat)                        \
 {                                                                      \
     SSE_ENTER();                                                       \
     fetch_ea_##bits(fetchdat);                                         \
@@ -295,10 +295,10 @@ opMOVAPS_xmm_store##suffix(uint32_t fetchdat)                         \
     return 0;                                                          \
 }
 
-DEF_MOVAPS_LOAD(_a16, 16)
-DEF_MOVAPS_LOAD(_a32, 32)
-DEF_MOVAPS_STORE(_a16, 16)
-DEF_MOVAPS_STORE(_a32, 32)
+DEF_MOVAPS_LOAD(a16, 16)
+DEF_MOVAPS_LOAD(a32, 32)
+DEF_MOVAPS_STORE(a16, 16)
+DEF_MOVAPS_STORE(a32, 32)
 
 /* MOVSS (F3 0F 10 / F3 0F 11) – scalar single */
 static int
