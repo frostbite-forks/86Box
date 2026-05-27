@@ -592,8 +592,7 @@ pci_bridge_init(const device_t *info)
     pci_bridge_reset(dev);
 
     if ((info->local != PCI_BRIDGE_INTEL_ICH2) && (info->local != AGP_BRIDGE_INTEL_815EP)) {
-        interrupt_count = sizeof(interrupts);
-        interrupt_mask  = interrupt_count - 1;
+        interrupt_mask = sizeof(interrupts) - 1;
         if (dev->slot < 32) {
             for (uint8_t i = 0; i < interrupt_count; i++)
                 interrupts[i] = pci_get_int(dev->slot, PCI_INTA + i);
