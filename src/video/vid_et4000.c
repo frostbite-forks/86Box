@@ -302,6 +302,10 @@ et4000_out(uint16_t addr, uint8_t val, void *priv)
                 svga->chain4       = (svga->chain4 & ~8) | (val & 8);
                 svga->fast         = (svga->gdcreg[8] == 0xff && !(svga->gdcreg[3] & 0x18) && !svga->gdcreg[1]) && svga->chain4 && !(svga->adv_flags & FLAG_ADDR_BY8);
                 return;
+            } else if (svga->seqaddr == 7) {
+                svga_out(addr, val, svga);
+                svga_recalctimings(svga);
+                return;
             } else if (svga->seqaddr == 0x0e) {
                 svga->seqregs[0x0e] = val;
                 svga->chain4 &= ~0x02;
@@ -670,12 +674,10 @@ et4000_recalctimings(svga_t *svga)
     }
 
     svga->clock = (cpuclock * (double) (1ULL << 32)) / svga->getclock(clk_sel, svga->clock_gen);
-    if (!(svga->gdcreg[6] & 1) && !(svga->attrregs[0x10] & 1)) {
+    if (svga->seqregs[7] & 0x01)
+        svga->clock *= 4.0;
+    else if (svga->seqregs[7] & 0x40)
         svga->clock *= 2.0;
-    } else {
-        if ((svga->bpp <= 8) || ((svga->gdcreg[5] & 0x60) <= 0x20))
-            svga->clock *= 2.0;
-    }
 
     switch (svga->bpp) {
         case 15:
@@ -910,7 +912,7 @@ et4000_init(const device_t *info)
     if (dev->type >= ET4000_TYPE_ISA)
         dev->svga.ramdac = device_add(&sc1502x_ramdac_device);
 
-    dev->svga.clock_gen = device_add(&ics2494an_324_device);
+    dev->svga.clock_gen = device_add(&ics2494an_304_device);
     dev->svga.getclock  = ics2494_getclock;
 
     if (dev->type == ET4000_TYPE_TC6058AF)

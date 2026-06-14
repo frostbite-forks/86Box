@@ -149,6 +149,7 @@ uint64_t instru_run_ms                          = 0;
 #endif
 int      clear_flash                            = 0;
 int      auto_paused                            = 0;
+int      auto_dialog_paused                     = 0;
 
 /* Configuration values. */
 int      window_remember;
@@ -180,6 +181,7 @@ int      isartc_type                            = 0;              /* (C) enable 
 int      gfxcard[GFXCARD_MAX]                   = { 0, 0 };       /* (C) graphics/video card */
 int      show_second_monitors                   = 1;              /* (C) show non-primary monitors */
 int      sound_is_float                         = 1;              /* (C) sound uses FP values */
+int      sound_sample_rate                      = FREQ_48000;     /* (C) sound output sample rate */
 int      voodoo_enabled                         = 0;              /* (C) video option */
 int      ibm8514_standalone_enabled             = 0;              /* (C) video option */
 int      xga_standalone_enabled                 = 0;              /* (C) video option */
@@ -202,8 +204,9 @@ int      open_dir_usr_path                      = 0;              /* (G) default
                                                                          of usr_path */
 int      video_fullscreen_scale_maximized       = 0;              /* (C) Whether fullscreen scaling settings
                                                                          also apply when maximized. */
-int      do_auto_pause                          = 0;              /* (C) Auto-pause the emulator on focus
+int      do_auto_pause                          = 0;              /* (G) Auto-pause the emulator on focus
                                                                          loss */
+int      do_auto_dialog_pause                   = 0;              /* (G) Auto-pause the emulator on dialog boxes */
 int      force_constant_mouse                   = 0;              /* (C) Force constant updating of the mouse */
 int      hook_enabled                           = 1;              /* (C) Keyboard hook is enabled */
 int      test_mode                              = 0;              /* (C) Test mode */
@@ -296,7 +299,7 @@ struct accelKey def_acc_keys[NUM_ACCELS] = {
     {
         .name="pause",
         .desc="Toggle pause",
-        .seq="Ctrl+Alt+F1"
+        .seq="Ctrl+Alt+P"
     },
     {
         .name="mute",
@@ -307,6 +310,11 @@ struct accelKey def_acc_keys[NUM_ACCELS] = {
         .name="force_interpretation",
         .desc="Force interpretation",
         .seq="Ctrl+Alt+I"
+    },
+    {
+        .name="toggle_osd",
+        .desc="Toggle on-screen display",
+        .seq="Ctrl+Alt+O"
     }
 };
 
@@ -351,8 +359,6 @@ int efscrnsz_y = SCREEN_RES_Y;
 #endif
 
 __thread int is_cpu_thread = 0;
-
-static char mouse_msg[3][200];
 
 static ATOMIC_INT do_pause_ack = 0;
 static ATOMIC_INT pause_ack = 0;
@@ -399,7 +405,7 @@ void
 pclog_ex(UNUSED(const char *fmt), UNUSED(va_list ap))
 {
 #ifndef RELEASE_BUILD
-    char temp[LOG_SIZE_BUFFER];
+    char *temp = calloc(1, LOG_SIZE_BUFFER);
 
     if (!fmt || !fmt[0])
         return;
@@ -420,6 +426,8 @@ pclog_ex(UNUSED(const char *fmt), UNUSED(va_list ap))
     }
 
     fflush(stdlog);
+
+    free(temp);
 #endif
 }
 
@@ -474,7 +482,7 @@ always_log(const char *fmt, ...)
 void
 fatal(const char *fmt, ...)
 {
-    char    temp[LOG_SIZE_BUFFER];
+    char *temp = calloc(1, LOG_SIZE_BUFFER);
     va_list ap;
     char   *sp;
 
@@ -515,6 +523,7 @@ fatal(const char *fmt, ...)
     do_stop();
 
     fflush(stdlog);
+    free(temp);
 
     exit(-1);
 }
@@ -565,7 +574,7 @@ fatal_ex(const char *fmt, va_list ap)
 void
 warning(const char *fmt, ...)
 {
-    char    temp[LOG_SIZE_BUFFER];
+    char *temp = calloc(1, LOG_SIZE_BUFFER);
     va_list ap;
     char   *sp;
 
@@ -595,9 +604,10 @@ warning(const char *fmt, ...)
 
     do_pause(2);
 
-    ui_msgbox(MBX_ERROR, temp);
+    ui_msgbox(MBX_WARNING, temp);
 
     fflush(stdlog);
+    free(temp);
 
     do_pause(0);
 }
@@ -605,7 +615,7 @@ warning(const char *fmt, ...)
 void
 warning_ex(const char *fmt, va_list ap)
 {
-    char  temp[LOG_SIZE_BUFFER];
+    char *temp = calloc(1, LOG_SIZE_BUFFER);
     char *sp;
 
     if (stdlog == NULL) {
@@ -630,9 +640,10 @@ warning_ex(const char *fmt, va_list ap)
 
     do_pause(2);
 
-    ui_msgbox(MBX_ERROR, temp);
+    ui_msgbox(MBX_WARNING, temp);
 
     fflush(stdlog);
+    free(temp);
 
     do_pause(0);
 }
@@ -1273,7 +1284,7 @@ usage:
         start_vmm = 0;
 #ifdef __APPLE__
         if (!strncmp(exe_path, "/private/var/folders/", 21)) {
-            ui_msgbox_header(MBX_FATAL, "App Translocation", EMU_NAME " cannot determine the emulated machine's location due to a macOS security feature. Please move the " EMU_NAME " app to another folder (not /Applications), or make a copy of it and open that copy instead.");
+            ui_msgbox_header(MBX_ERROR | MBX_FATAL, "App Translocation", EMU_NAME " cannot determine the emulated machine's location due to a macOS security feature. Please move the " EMU_NAME " app to another folder (not /Applications), or make a copy of it and open that copy instead.");
             return 0;
         }
 #endif
@@ -1438,7 +1449,7 @@ pc_init_modules(void)
         machine = -1;
         while (machine_get_internal_name_ex(c) != NULL) {
             if (machine_available(c)) {
-                ui_msgbox_header(MBX_INFO, plat_get_string(STRING_HW_NOT_AVAILABLE_TITLE), temp);
+                ui_msgbox_header(MBX_WARNING, plat_get_string(STRING_HW_NOT_AVAILABLE_TITLE), temp);
                 machine = c;
                 config_save();
                 break;
@@ -1460,7 +1471,7 @@ pc_init_modules(void)
         while (video_get_internal_name(c) != NULL) {
             gfxcard[0] = -1;
             if (video_card_available(c)) {
-                ui_msgbox_header(MBX_INFO, plat_get_string(STRING_HW_NOT_AVAILABLE_TITLE), temp);
+                ui_msgbox_header(MBX_WARNING, plat_get_string(STRING_HW_NOT_AVAILABLE_TITLE), temp);
                 gfxcard[0] = c;
                 config_save();
                 break;
@@ -1478,8 +1489,8 @@ pc_init_modules(void)
         if (!video_card_available(gfxcard[i])) {
             memset(tempc, 0, sizeof(tempc));
             device_get_name(video_card_getdevice(gfxcard[i]), 0, tempc);
-            snprintf(temp, sizeof_w(temp), plat_get_string(STRING_HW_NOT_AVAILABLE_VIDEO2), tempc);
-            ui_msgbox_header(MBX_INFO, plat_get_string(STRING_HW_NOT_AVAILABLE_TITLE), temp);
+            snprintf(temp, sizeof_w(temp), plat_get_string(STRING_HW_NOT_AVAILABLE_DEVICE), tempc);
+            ui_msgbox_header(MBX_WARNING, plat_get_string(STRING_HW_NOT_AVAILABLE_TITLE), temp);
             gfxcard[i] = 0;
         }
     }
@@ -1665,6 +1676,8 @@ pc_reset_hard_close(void)
     nvr_close();
 
     mouse_close();
+    
+    sound_close();
 
     device_close_all();
 
@@ -1848,6 +1861,9 @@ pc_reset_hard_init(void)
        the IDE controllers present are not some form of PCI. */
     ide_drives_set_shadow();
 
+    /* Make sure to disable any sound timers with no handlers. */
+    sound_recalc_timers();
+
     /* Reset the CPU module. */
     resetx86();
     dma_reset();
@@ -1865,44 +1881,10 @@ pc_reset_hard_init(void)
     cycles_main = 0;
 #endif
 
-    update_mouse_msg();
-
     if (test_mode)
         pc_test_mode_entry_point();
 
     ui_hard_reset_completed();
-}
-
-void
-update_mouse_msg(void)
-{
-#ifdef USE_SDL_UI
-    char  cpufamily[128];
-    char *cp;
-
-    if (!cpu_override)
-        strncpy(cpufamily, cpu_f->name, sizeof(cpufamily) - 1);
-    else
-        snprintf(cpufamily, sizeof(cpufamily), "[U] %s", cpu_f->name);
-
-    cp = strchr(cpufamily, '(');
-    if (cp) /* remove parentheses */
-        *(cp - 1) = '\0';
-    snprintf(mouse_msg[0], sizeof(mouse_msg[0]), "%s v%s - %%i%%%% - %s - %s/%s - %s",
-             EMU_NAME, EMU_VERSION_FULL, machine_getname(machine), cpufamily, cpu_s->name,
-             plat_get_string(STRING_MOUSE_CAPTURE));
-    snprintf(mouse_msg[1], sizeof(mouse_msg[1]), "%s v%s - %%i%%%% - %s - %s/%s - %s",
-             EMU_NAME, EMU_VERSION_FULL, machine_getname(machine), cpufamily, cpu_s->name,
-             (mouse_get_buttons() > 2) ? plat_get_string(STRING_MOUSE_RELEASE) : plat_get_string(STRING_MOUSE_RELEASE_MMB));
-    snprintf(mouse_msg[2], sizeof(mouse_msg[2]), "%s v%s - %%i%%%% - %s - %s/%s",
-             EMU_NAME, EMU_VERSION_FULL, machine_getname(machine), cpufamily, cpu_s->name);
-#else
-    snprintf(mouse_msg[0], sizeof(mouse_msg[0]), "%%i%%%% - %s",
-             plat_get_string(STRING_MOUSE_CAPTURE));
-    snprintf(mouse_msg[1], sizeof(mouse_msg[1]), "%%i%%%% - %s",
-             (mouse_get_buttons() > 2) ? plat_get_string(STRING_MOUSE_RELEASE) : plat_get_string(STRING_MOUSE_RELEASE_MMB));
-    strncpy(mouse_msg[2], "%i%%", sizeof(mouse_msg[2]));
-#endif
 }
 
 void
@@ -1946,6 +1928,8 @@ pc_close(UNUSED(thread_t *ptr))
 
     video_close();
 
+    sound_close();
+
     device_close_all();
 
     scsi_device_close_all();
@@ -1974,10 +1958,9 @@ pc_close(UNUSED(thread_t *ptr))
 
 #ifdef __APPLE__
 static void
-_ui_window_title(void *s)
+_ui_emu_status(void *s)
 {
-    ui_window_title((char *) s);
-    free(s);
+    ui_emu_status(*((int *) s));
 }
 #endif
 
@@ -1993,9 +1976,6 @@ ack_pause(void)
 void
 pc_run(void)
 {
-    int  mouse_msg_idx;
-    char temp[200];
-
     /* Trigger a hard reset if one is pending. */
     if (hard_reset_pending) {
         hard_reset_pending = 0;
@@ -2029,12 +2009,14 @@ pc_run(void)
     }
 
     if (title_update) {
+#ifdef __APPLE__
+        static
+#endif
         int      speed_percent;
         int      target_fps;
         uint32_t elapsed_ms;
         int64_t  numerator;
 
-        mouse_msg_idx = ((mouse_type == MOUSE_TYPE_NONE) || (mouse_input_mode >= 1)) ? 2 : !!mouse_capture;
         target_fps    = force_10ms ? 100 : 1000;
         elapsed_ms    = fps_sample_elapsed_ms ? fps_sample_elapsed_ms : 1;
 
@@ -2052,12 +2034,11 @@ pc_run(void)
         speed_percent = (int) ((numerator + ((int64_t) elapsed_ms * target_fps / 2)) /
                                ((int64_t) elapsed_ms * target_fps));
 
-        snprintf(temp, sizeof(temp), mouse_msg[mouse_msg_idx], speed_percent);
 #ifdef __APPLE__
         /* Needed due to modifying the UI on the non-main thread is a big no-no. */
-        dispatch_async_f(dispatch_get_main_queue(), strdup((const char *) temp), _ui_window_title);
+        dispatch_async_f(dispatch_get_main_queue(), &speed_percent, _ui_emu_status);
 #else
-        ui_window_title(temp);
+        ui_emu_status(speed_percent);
 #endif
         title_update = 0;
     }

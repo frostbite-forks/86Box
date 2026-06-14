@@ -2230,8 +2230,8 @@ const machine_t machines[] = {
         .cpu               = {
             .package     = CPU_PKG_8088,
             .block       = CPU_BLOCK_NONE,
-            .min_bus     = 0,
-            .max_bus     = 0,
+            .min_bus     = 4772728,
+            .max_bus     = 4772728,
             .min_voltage = 0,
             .max_voltage = 0,
             .min_multi   = 0,
@@ -2324,8 +2324,8 @@ const machine_t machines[] = {
         .cpu               = {
             .package     = CPU_PKG_8088,
             .block       = CPU_BLOCK_NONE,
-            .min_bus     = 0,
-            .max_bus     = 0,
+            .min_bus     = 4772728,
+            .max_bus     = 8000000,
             .min_voltage = 0,
             .max_voltage = 0,
             .min_multi   = 0,
@@ -8504,7 +8504,7 @@ const machine_t machines[] = {
         .flags     = MACHINE_FLAGS_NONE,
         .ram       = {
             .min  = 1024,
-            .max  = 65536,
+            .max  = 32768,
             .step = 1024
         },
         .nvrmask                  = 127,
@@ -9282,10 +9282,10 @@ const machine_t machines[] = {
             .max_multi   = 0
         },
         .bus_flags = MACHINE_VLB,
-        .flags     = MACHINE_APM,
+        .flags     = MACHINE_PS2_KBC | MACHINE_APM,
         .ram       = {
             .min  = 1024,
-            .max  = 32768,
+            .max  = 131072,
             .step = 1024
         },
         .nvrmask                  = 127,
@@ -9297,7 +9297,7 @@ const machine_t machines[] = {
         .nvr_params               = NVR_AT,
         .sio_device               = NULL,
         .sio_params               = 0x00000000,
-        .kbc_p1                   = 0x000004f0,
+        .kbc_p1                   = 0x00000cf0,
         .gpio                     = 0xffffffff,
         .gpio_acpi                = 0xffffffff,
         .device                   = NULL,
@@ -12176,7 +12176,7 @@ const machine_t machines[] = {
         .kbd_device               = NULL,
         .fdc_device               = NULL,
         .vid_device               = &gd5430_onboard_pci_device,
-        .snd_device               = &ess_1688_device, /* Onboard variant not yet emulated */
+        .snd_device               = &ess_1688_compaq_device,
         .net_device               = NULL,
         .aliases                  = { "MiTAC/Trigon PL4600C", "" }
     },
@@ -14872,7 +14872,7 @@ const machine_t machines[] = {
         .kbd_device               = NULL,
         .fdc_device               = NULL,
         .vid_device               = &s3_trio64_onboard_pci_device,
-        .snd_device               = &ess_1688_device, /* Onboard variant not yet emulated */
+        .snd_device               = &ess_1688_compaq_device,
         .net_device               = NULL,
         .aliases                  = { "MiTAC/Trigon PL5600D-I", "" }
     },
@@ -17381,7 +17381,7 @@ const machine_t machines[] = {
             .max_multi   = 3.5
         },
         .bus_flags = MACHINE_PS2_PCI,
-        .flags     = MACHINE_IDE_DUAL | MACHINE_VIDEO | MACHINE_APM, /* Machine has internal audio: ESS ES1869F */
+        .flags     = MACHINE_IDE_DUAL | MACHINE_VIDEO | MACHINE_SOUND | MACHINE_GAMEPORT | MACHINE_APM, /* Machine has internal audio: ESS ES1888F */
         .ram       = {
             .min  = 16384,
             .max  = 49152,
@@ -17403,7 +17403,7 @@ const machine_t machines[] = {
         .kbd_device               = NULL,
         .fdc_device               = NULL,
         .vid_device               = &s3_trio64v2dx_onboard_pci_device,
-        .snd_device               = NULL,
+        .snd_device               = &ess_1888_compaq_device,
         .net_device               = NULL,
         .aliases                  = { "MiTAC/Trigon TITAN-M", "" }
     },
@@ -17430,7 +17430,7 @@ const machine_t machines[] = {
             .max_multi   = 3.5
         },
         .bus_flags = MACHINE_PS2_PCI,
-        .flags     = MACHINE_IDE_DUAL | MACHINE_VIDEO | MACHINE_APM, /* Machine has internal audio: ESS ES1869F */
+        .flags     = MACHINE_IDE_DUAL | MACHINE_VIDEO | MACHINE_SOUND | MACHINE_GAMEPORT | MACHINE_APM, /* Machine has internal audio: ESS ES1887F */
         .ram       = {
             .min  = 16384,
             .max  = 49152,
@@ -17452,7 +17452,7 @@ const machine_t machines[] = {
         .kbd_device               = NULL,
         .fdc_device               = NULL,
         .vid_device               = &s3_trio64v2dx_onboard_pci_device,
-        .snd_device               = NULL,
+        .snd_device               = &ess_1887_device,
         .net_device               = NULL,
         .aliases                  = { "MiTAC/Trigon SNIPER", "" }
     },
@@ -19089,7 +19089,8 @@ const machine_t machines[] = {
         .net_device               = NULL,
         .aliases                  = { "" }
     },
-
+    /* Has the VIA VT82C586B southbridge with on-chip KBC identical to the VIA
+       VT82C42N. */
     {
         .name              = "[VIA VP3] Lucky Star 5AVP3",
         .internal_name     = "5avp3",
@@ -19114,7 +19115,7 @@ const machine_t machines[] = {
         .flags     = MACHINE_IDE_DUAL | MACHINE_APM | MACHINE_USB,
         .ram       = {
             .min  = 8192,
-            .max  = 524288,
+            .max  = 1048576,
             .step = 8192
         },
         .nvrmask                  = 127,
@@ -19137,7 +19138,6 @@ const machine_t machines[] = {
         .net_device               = NULL,
         .aliases                  = { "" }
     },
-    
     /* Has the VIA VT82C586B southbridge with on-chip KBC identical to the VIA
        VT82C42N. */
     {
@@ -21947,13 +21947,13 @@ const machine_t machines[] = {
         .kbc_p1                   = 0x00000cf0,
         .gpio                     = 0xffffffff,
         .gpio_acpi                = 0xffffffff,
-        .device                   = NULL,
+        .device                   = &p3v133_device,
         .kbd_device               = NULL,
         .fdc_device               = NULL,
         .vid_device               = NULL,
         .snd_device               = NULL,
         .net_device               = NULL,
-        .aliases                  = { "" }
+        .aliases                  = { "HP NetServer E200", "HP Eagle 2", "" }
     },
     /* Has a Winbond W83977EF Super I/O chip with on-chip KBC with AMIKey-2 KBC
        firmware. */
@@ -22399,7 +22399,7 @@ const machine_t machines[] = {
         .kbc_p1                   = 0x00000cf0,
         .gpio                     = 0xffffffff,
         .gpio_acpi                = 0xffffffff,
-        .device                   = NULL,
+        .device                   = &s2dge_device,
         .kbd_device               = NULL,
         .fdc_device               = NULL,
         .vid_device               = NULL,
@@ -23723,7 +23723,7 @@ machine_has_flags_ex(int flags)
     if (flags & MACHINE_PS2_KBC) {
         if (machine_is_ps2 && (machines[machine].init != machine_at_pc5286_init))
             ret |= MACHINE_PS2_KBC;
-        else
+        else if (machines[machine].init == machine_at_pc5286_init)
             ret &= ~MACHINE_PS2_KBC;
     }
 

@@ -142,6 +142,9 @@ load_global_emulator(void)
 
     open_dir_usr_path = ini_section_get_int(cat, "open_dir_usr_path", 0);
 
+    do_auto_pause        = ini_section_get_int(cat, "do_auto_pause", 0);
+    do_auto_dialog_pause = ini_section_get_int(cat, "do_auto_dialog_pause", 0);
+
     confirm_reset = ini_section_get_int(cat, "confirm_reset", 1);
     confirm_exit  = ini_section_get_int(cat, "confirm_exit", 1);
     confirm_save  = ini_section_get_int(cat, "confirm_save", 1);
@@ -377,7 +380,6 @@ load_general(void)
         ini_section_delete_var(cat, "window_coordinates");
     }
 
-    do_auto_pause = ini_section_get_int(cat, "do_auto_pause", 0);
     force_constant_mouse = ini_section_get_int(cat, "force_constant_mouse", 0);
     fdd_sounds_enabled = ini_section_get_int(cat, "fdd_sounds_enabled", 1);
 
@@ -955,6 +957,10 @@ load_sound(void)
     p = ini_section_get_string(cat, "sound_output_device", "");
     strncpy(sound_output_device, p, sizeof(sound_output_device) - 1);
     sound_output_device[sizeof(sound_output_device) - 1] = '\0';
+
+    sound_sample_rate = ini_section_get_int(cat, "sound_sample_rate", FREQ_48000);
+    if (sound_sample_rate != FREQ_44100 && sound_sample_rate != FREQ_48000)
+        sound_sample_rate = FREQ_48000;
 }
 
 /* Load "Network" section. */
@@ -1003,9 +1009,9 @@ load_network(void)
             if (nc->net_type == NET_TYPE_PCAP) {
                 if ((network_dev_to_id(p) == -1) || (network_ndev == 1)) {
                     if (network_ndev == 1)
-                        ui_msgbox_header(MBX_ERROR, plat_get_string(STRING_PCAP_ERROR_NO_DEVICES), plat_get_string(STRING_PCAP_ERROR_DESC));
+                        ui_msgbox(MBX_ERROR, plat_get_string(STRING_PCAP_ERROR_NO_DEVICES));
                     else if (network_dev_to_id(p) == -1)
-                        ui_msgbox_header(MBX_ERROR, plat_get_string(STRING_PCAP_ERROR_INVALID_DEVICE), plat_get_string(STRING_PCAP_ERROR_DESC));
+                        ui_msgbox(MBX_ERROR, plat_get_string(STRING_PCAP_ERROR_INVALID_DEVICE));
                     strcpy(nc->host_dev_name, "none");
                 } else
                     strncpy(nc->host_dev_name, p, sizeof(nc->host_dev_name) - 1);
@@ -1055,9 +1061,9 @@ load_network(void)
             if (nc->net_type == NET_TYPE_PCAP) {
                 if ((network_dev_to_id(p) == -1) || (network_ndev == 1)) {
                     if (network_ndev == 1)
-                        ui_msgbox_header(MBX_ERROR, plat_get_string(STRING_PCAP_ERROR_NO_DEVICES), plat_get_string(STRING_PCAP_ERROR_DESC));
+                        ui_msgbox(MBX_ERROR, plat_get_string(STRING_PCAP_ERROR_NO_DEVICES));
                     else if (network_dev_to_id(p) == -1)
-                        ui_msgbox_header(MBX_ERROR, plat_get_string(STRING_PCAP_ERROR_INVALID_DEVICE), plat_get_string(STRING_PCAP_ERROR_DESC));
+                        ui_msgbox(MBX_ERROR, plat_get_string(STRING_PCAP_ERROR_INVALID_DEVICE));
                     strcpy(nc->host_dev_name, "none");
                 } else
                     strncpy(nc->host_dev_name, p, sizeof(nc->host_dev_name) - 1);
@@ -2622,6 +2628,7 @@ config_load(void)
         machine              = machine_get_machine_from_internal_name("ibmpc");
         dpi_scale            = 1;
         do_auto_pause        = 0;
+        do_auto_dialog_pause = 0;
         force_constant_mouse = 0;
 
         cpu_override_interpreter = 0;
@@ -2749,6 +2756,16 @@ save_global_emulator(void)
         ini_section_set_int(cat, "open_dir_usr_path", open_dir_usr_path);
     else
         ini_section_delete_var(cat, "open_dir_usr_path");
+
+    if (do_auto_pause)
+        ini_section_set_int(cat, "do_auto_pause", do_auto_pause);
+    else
+        ini_section_delete_var(cat, "do_auto_pause");
+
+    if (do_auto_dialog_pause)
+        ini_section_set_int(cat, "do_auto_dialog_pause", do_auto_dialog_pause);
+    else
+        ini_section_delete_var(cat, "do_auto_dialog_pause");
 
     if (confirm_reset != 1)
         ini_section_set_int(cat, "confirm_reset", confirm_reset);
@@ -2982,11 +2999,6 @@ save_general(void)
         ini_section_set_int(cat, "video_gl_vsync", video_vsync);
     else
         ini_section_delete_var(cat, "video_gl_vsync");
-
-    if (do_auto_pause)
-        ini_section_set_int(cat, "do_auto_pause", do_auto_pause);
-    else
-        ini_section_delete_var(cat, "do_auto_pause");
 
     if (video_gl_input_scale != 1.0) {
         ini_section_set_double(cat, "video_gl_input_scale", video_gl_input_scale);
@@ -3359,6 +3371,11 @@ save_sound(void)
         ini_section_delete_var(cat, "sound_output_device");
     else
         ini_section_set_string(cat, "sound_output_device", sound_output_device);
+
+    if (sound_sample_rate == FREQ_48000)
+        ini_section_delete_var(cat, "sound_sample_rate");
+    else
+        ini_section_set_int(cat, "sound_sample_rate", sound_sample_rate);
 
     ini_delete_section_if_empty(config, cat);
 }
